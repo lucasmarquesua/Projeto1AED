@@ -11,8 +11,8 @@
 /// 2025
 
 // Student authors (fill in below):
-// NMec:
-// Name:
+// NMec:125982
+// Name:Lucas Gaspar Marques
 // NMec:
 // Name:
 //
@@ -286,8 +286,24 @@ Image ImageCopy(const Image img) {
 
   // TO BE COMPLETED
   // ...
+  // Creates a new ImageHeader
+  Image copy = AllocateImageHeader(img->width,img->height);
+  if(copy == NULL)return NULL;
+  // Copy colors and LUT
+  copy->num_colors = img->num_colors;
+  for(uint16 i= 0; i<img->num_colors ;i++){
+    copy->LUT[i]=img->LUT[i];
+  }
 
-  return NULL;
+  for(uint32 i = 0; i < img->height;i++){
+    //Allocate new row
+    copy->image[i]= AllocateRowArray(img->width);
+    for(uint32 j = 0; j < img->width;j++){
+      //Copy pixel by pixel
+      copy->image[i][j]= img->image[i][j];
+    }
+  }
+  return copy;
 }
 
 /// Printing on the console
@@ -558,8 +574,21 @@ int ImageIsEqual(const Image img1, const Image img2) {
 
   // TO BE COMPLETED
   // ...
-
-  return 0;
+  //Check image size
+  if((img1->width!=img2->width)||(img1->height!=img2->height)){
+    return 0;
+  }
+  //Check each pixel color
+  for(uint32 i = 0; i < img1->height;i++){
+    for(uint32 j = 0; j < img1->width;j++){
+      rgb_t c1 = img1->LUT[img1->image[i][j]];
+      rgb_t c2 = img2->LUT[img2->image[i][j]];
+      if(c1!=c2){
+        return 0;
+      }
+    }
+  }
+  return 1;
 }
 
 int ImageIsDifferent(const Image img1, const Image img2) {
