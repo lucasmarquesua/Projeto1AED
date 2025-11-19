@@ -617,8 +617,31 @@ Image ImageRotate90CW(const Image img) {
 
   // TO BE COMPLETED
   // ...
+  uint16 old_w = img->width;
+  uint16 old_h = img->height;
+  //New image with rotated dimentions
+  Image img_r90 = AllocateImageHeader(old_h,old_w);
+  // Copy colors and LUT
+  img_r90->num_colors = img->num_colors;
+  for(uint16 i= 0; i<img->num_colors ;i++){
+    img_r90->LUT[i]=img->LUT[i];
+  }
+  //Allocate each row
+  for(int i = 0;i<img_r90->height;i++){
+      img_r90->image[i]= AllocateRowArray(img_r90->width);
+      if(img_r90->image[i]==NULL)return NULL;
+  }
+  //Rotate 90 degrees
+  for(uint32 i = 0; i < old_h;i++){
+    for(uint32 j = 0; j < old_w;j++){
+      //Copy new position
+      img_r90->image[j][old_h - 1 - i]= img->image[i][j];
+    }
+  }
 
-  return NULL;
+
+
+  return img_r90;
 }
 
 /// Rotate 180 degrees clockwise (CW).
@@ -632,8 +655,18 @@ Image ImageRotate180CW(const Image img) {
 
   // TO BE COMPLETED
   // ...
-
-  return NULL;
+  //Rotates 90 degrees
+  Image temp_img = ImageRotate90CW(img);
+  if(temp_img==NULL)return NULL;
+  //Rotates 90 degrees again to make 180 degrees
+  Image img_r180 = ImageRotate90CW(temp_img);
+  if(img_r180==NULL){
+    ImageDestroy(&temp_img);
+    return NULL;
+  }
+  //Destroy temporary image to avoid memory problems
+  ImageDestroy(&temp_img);
+  return img_r180;
 }
 
 /// Check whether pixel coords (u, v) are inside img.
