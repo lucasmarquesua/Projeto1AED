@@ -581,6 +581,9 @@ int ImageIsEqual(const Image img1, const Image img2) {
   //Check each pixel color
   for(uint32 i = 0; i < img1->height;i++){
     for(uint32 j = 0; j < img1->width;j++){
+      //Contavilizar acesso à comparação
+      PIXMEM++;
+
       rgb_t c1 = img1->LUT[img1->image[i][j]];
       rgb_t c2 = img2->LUT[img2->image[i][j]];
       if(c1!=c2){
@@ -627,7 +630,7 @@ Image ImageRotate90CW(const Image img) {
     img_r90->LUT[i]=img->LUT[i];
   }
   //Allocate each row
-  for(int i = 0;i<img_r90->height;i++){
+  for(uint32 i = 0;i<img_r90->height;i++){
       img_r90->image[i]= AllocateRowArray(img_r90->width);
       if(img_r90->image[i]==NULL)return NULL;
   }

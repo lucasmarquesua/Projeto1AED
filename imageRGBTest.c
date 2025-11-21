@@ -67,6 +67,45 @@ int main(int argc, char* argv[]) {
   Image image_3 = ImageCreatePalete(4 * 32, 4 * 32, 4);
   ImageSavePPM(image_3, "palete.ppm");
 
+  // ---------------------------------------------------------
+  // NOVO: CODIGO ADICIONADO PARA TESTES DE COMPLEXIDADE
+  // ---------------------------------------------------------
+  printf("\n============================================\n");
+  printf("9) Testes de Complexidade: ImageIsEqual\n");
+  printf("============================================\n");
+  printf("%-10s %-15s %-15s\n", "Tamanho", "Pior Caso (Ops)", "Melhor Caso (Ops)");
+  
+  uint32 sizes[] = {100, 200, 500, 1000}; // Tamanhos a testar
+  int num_sizes = 4;
+
+  for(int i = 0; i < num_sizes; i++) {
+      uint32 sz = sizes[i];
+      
+      // Preparar imagens para PIOR CASO (Iguais)
+      Image imgA = ImageCreate(sz, sz);
+      Image imgB = ImageCreate(sz, sz); // Tambem toda branca
+      
+      InstrReset(); // Reset contador PIXMEM
+      ImageIsEqual(imgA, imgB);
+      unsigned long pior_caso = InstrCount[0];
+      
+      // Preparar imagens para MELHOR CASO (Diferentes no inicio)
+      // Como imgA e branca, criamos uma preta (xadrez todo preto) para imgB
+      ImageDestroy(&imgB);
+      imgB = ImageCreateChess(sz, sz, sz, 0x000000); 
+      
+      InstrReset(); // Reset contador PIXMEM
+      ImageIsEqual(imgA, imgB);
+      unsigned long melhor_caso = InstrCount[0];
+      
+      printf("%dx%d      %-15lu %-15lu\n", sz, sz, pior_caso, melhor_caso);
+      
+      ImageDestroy(&imgA);
+      ImageDestroy(&imgB);
+  }
+  printf("Nota: O Caso Medio estima-se teoricamente como (Pior Caso / 2).\n");
+  // ---------------------------------------------------------
+
   ImageDestroy(&white_image);
   ImageDestroy(&black_image);
   if (copy_image != NULL) {
