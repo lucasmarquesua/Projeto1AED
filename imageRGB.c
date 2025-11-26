@@ -13,8 +13,8 @@
 // Student authors (fill in below):
 // NMec:125982
 // Name:Lucas Gaspar Marques
-// NMec:
-// Name:
+// NMec:103871
+// Name:Gonçalo Carapinheira Duarte
 //
 // Date:
 //
@@ -705,8 +705,27 @@ int ImageRegionFillingRecursive(Image img, int u, int v, uint16 label) {
   // TO BE COMPLETED
   // ...
 
-  return 0;
+  // Store the original background color from the seed pixel
+  uint16 background = img->data[v][u];
+  
+  // If pixel is already labeled or not the background color, return 0
+  if (!ImageIsValidPixel(img, u, v) || img->data[v][u] != background || img->data[v][u] == label) {
+    return 0;
+  }
+  
+  // Fill current pixel
+  img->data[v][u] = label;
+  int count = 1;  // Initialize count with this pixel
+  
+  // Recursively fill neighbors and accumulate counts
+  count += ImageRegionFillingRecursive(img, u + 1, v, label);
+  count += ImageRegionFillingRecursive(img, u, v + 1, label);
+  count += ImageRegionFillingRecursive(img, u, v - 1, label);
+  count += ImageRegionFillingRecursive(img, u - 1, v, label);
+  
+  return count;
 }
+
 
 /// Region growing using a STACK of pixel coordinates to
 /// implement the flood-filling algorithm.
@@ -717,9 +736,76 @@ int ImageRegionFillingWithSTACK(Image img, int u, int v, uint16 label) {
 
   // TO BE COMPLETED
   // ...
-
-  return 0;
+  
+  uint16 original_color = img->data[v][u];
+  
+  // If the seed pixel already has the target label, return 0
+  if (original_color == label) {
+    return 0;
+  }
+  
+  // Initialize stack for pixel coordinates
+  int stack_capacity = img->width * 2;
+  int *stack_u = (int *)malloc(stack_capacity * sizeof(int));
+  int *stack_v = (int *)malloc(stack_capacity * sizeof(int));
+  int stack_top = -1;
+  
+  // Push seed pixel onto stack
+  stack_top++;
+  stack_u[stack_top] = u;
+  stack_v[stack_top] = v;
+  
+  int count = 0;
+  
+  // Process pixels until stack is empty
+  while (stack_top >= 0) {
+    // Pop pixel from stack
+    int current_u = stack_u[stack_top];
+    int current_v = stack_v[stack_top];
+    stack_top--;
+    
+    // Check if pixel is valid and has the original color
+    if (ImageIsValidPixel(img, current_u, current_v) && 
+        img->data[current_v][current_u] == original_color) {
+      
+      // Label the pixel and count it (similar to recursive version)
+      img->data[current_v][current_u] = label;
+      count++;  // Count this pixel
+      
+      // Push all 4-connected neighbors onto stack (similar pattern to recursive calls)
+      // Check stack capacity and resize if needed
+      if (stack_top + 4 >= stack_capacity) {
+        stack_capacity *= 2;
+        stack_u = (int *)realloc(stack_u, stack_capacity * sizeof(int));
+        stack_v = (int *)realloc(stack_v, stack_capacity * sizeof(int));
+      }
+      
+      // Push neighbors in the same order as recursive calls
+      stack_top++;
+      stack_u[stack_top] = current_u + 1;  // Right
+      stack_v[stack_top] = current_v;
+      
+      stack_top++;
+      stack_u[stack_top] = current_u;      // Down
+      stack_v[stack_top] = current_v + 1;
+      
+      stack_top++;
+      stack_u[stack_top] = current_u;      // Up
+      stack_v[stack_top] = current_v - 1;
+      
+      stack_top++;
+      stack_u[stack_top] = current_u - 1;  // Left
+      stack_v[stack_top] = current_v;
+    }
+  }
+  
+  // Free stack memory
+  free(stack_u);
+  free(stack_v);
+  
+  return count;
 }
+
 
 /// Region growing using a QUEUE of pixel coordinates to
 /// implement the flood-filling algorithm.
@@ -730,8 +816,62 @@ int ImageRegionFillingWithQUEUE(Image img, int u, int v, uint16 label) {
 
   // TO BE COMPLETED
   // ...
-
-  return 0;
+ 
+  // Store the original color of the seed pixel
+  uint16 original_color = img->data[v][u];
+  
+  // If the seed pixel already has the target label, return 0
+  if (original_color == label) {
+    return 0;
+  }
+  
+  // Initialize queue for pixel coordinates
+  Queue* queue = QueueCreate(1000);
+  PixelCoords seed = {u, v};
+  QueueEnqueue(queue, seed);
+  
+  int count = 0;
+  
+  // Process pixels until queue is empty
+  while (!QueueIsEmpty(queue)) {
+    // Dequeue pixel from front
+    PixelCoords current = QueueDequeue(queue);
+    int current_u = current.u;
+    int current_v = current.v;
+    
+    // Check if pixel is valid and has the original color
+    if (ImageIsValidPixel(img, current_u, current_v) && 
+        img->data[current_v][current_u] == original_color) {
+      
+      // Label the pixel and count it
+      img->data[current_v][current_u] = label;
+      count++;
+      
+      // Enqueue all 4-connected neighbors in explicit order
+      PixelCoords neighbor;
+      
+      neighbor.u = current_u + 1;  // Right
+      neighbor.v = current_v;
+      QueueEnqueue(queue, neighbor);
+      
+      neighbor.u = current_u;      // Down
+      neighbor.v = current_v + 1;
+      QueueEnqueue(queue, neighbor);
+      
+      neighbor.u = current_u;      // Up
+      neighbor.v = current_v - 1;
+      QueueEnqueue(queue, neighbor);
+      
+      neighbor.u = current_u - 1;  // Left
+      neighbor.v = current_v;
+      QueueEnqueue(queue, neighbor);
+    }
+  }
+  
+  // Free queue memory
+  QueueDestroy(&queue);
+  
+  return count;
 }
 
 /// Image Segmentation
@@ -751,5 +891,37 @@ int ImageSegmentation(Image img, FillingFunction fillFunct) {
   // TO BE COMPLETED
   // ...
 
-  return 0;
+  uint16 next_label = 1;  // Start labeling from 1 (0 is white background)
+  int total_regions = 0;
+
+  // Sequential scan of the entire image
+  for (int v = 0; v < img->height; v++) {
+    for (int u = 0; u < img->width; u++) {
+      // Check if current pixel is white 
+      if (img->data[v][u] == 0) {
+        // Found a new white region, perform region growing
+        int pixels_filled = fillFunct(img, u, v, next_label);
+        
+        if (pixels_filled > 0) {
+          // Generate RGB color for this region label
+          RGBColor region_color = GenerateNextColor();
+          
+          // Store the color in the LUT at the label index
+          img->lut[next_label] = region_color;
+          
+          total_regions++;
+          next_label++;
+          
+          // Safety check to avoid exceeding LUT size
+          if (next_label >= FIXED_LUT_SIZE) {
+            printf("Reached maximum number of labels (%d)\n", FIXED_LUT_SIZE);
+            return total_regions;
+          }
+        }
+      }
+    }
+  }
+
+  return total_regions;
 }
+
