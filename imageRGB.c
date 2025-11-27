@@ -702,27 +702,40 @@ int ImageRegionFillingRecursive(Image img, int u, int v, uint16 label) {
   assert(ImageIsValidPixel(img, u, v));
   assert(label < FIXED_LUT_SIZE);
 
-  // TO BE COMPLETED
-  // ...
+  // Obter a cor atual do pixel (que serve de "cor de fundo" para este passo)
+  uint16 current_color = img->image[v][u];
 
-  // Store the original background color from the seed pixel
-  uint16 background = img->data[v][u];
-  
-  // If pixel is already labeled or not the background color, return 0
-  if (!ImageIsValidPixel(img, u, v) || img->data[v][u] != background || img->data[v][u] == label) {
+  // Proteção contra ciclo infinito:
+  if (current_color == label) {
     return 0;
   }
-  
-  // Fill current pixel
-  img->data[v][u] = label;
-  int count = 1;  // Initialize count with this pixel
-  
-  // Recursively fill neighbors and accumulate counts
-  count += ImageRegionFillingRecursive(img, u + 1, v, label);
-  count += ImageRegionFillingRecursive(img, u, v + 1, label);
-  count += ImageRegionFillingRecursive(img, u, v - 1, label);
-  count += ImageRegionFillingRecursive(img, u - 1, v, label);
-  
+
+  // 3. Pintar o pixel atual
+  img->image[v][u] = label;
+  int count = 1; 
+
+  // Tentar espalhar para os 4 vizinhos
+  // Só chamamos a recursão se o vizinho for válido
+  // Vizinho da Direita (u + 1)
+  if (ImageIsValidPixel(img, u + 1, v) && img->image[v][u + 1] == current_color) {
+    count += ImageRegionFillingRecursive(img, u + 1, v, label);
+  }
+
+  // Vizinho da Esquerda (u - 1)
+  if (ImageIsValidPixel(img, u - 1, v) && img->image[v][u - 1] == current_color) {
+    count += ImageRegionFillingRecursive(img, u - 1, v, label);
+  }
+
+  // Vizinho de Baixo (v + 1)
+  if (ImageIsValidPixel(img, u, v + 1) && img->image[v + 1][u] == current_color) {
+    count += ImageRegionFillingRecursive(img, u, v + 1, label);
+  }
+
+  // Vizinho de Cima (v - 1)
+  if (ImageIsValidPixel(img, u, v - 1) && img->image[v - 1][u] == current_color) {
+    count += ImageRegionFillingRecursive(img, u, v - 1, label);
+  }
+
   return count;
 }
 
@@ -737,7 +750,7 @@ int ImageRegionFillingWithSTACK(Image img, int u, int v, uint16 label) {
   // TO BE COMPLETED
   // ...
   
-  uint16 original_color = img->data[v][u];
+  uint16 original_color = img->image[v][u];
   
   // If the seed pixel already has the target label, return 0
   if (original_color == label) {
@@ -766,10 +779,10 @@ int ImageRegionFillingWithSTACK(Image img, int u, int v, uint16 label) {
     
     // Check if pixel is valid and has the original color
     if (ImageIsValidPixel(img, current_u, current_v) && 
-        img->data[current_v][current_u] == original_color) {
+        img->image[current_v][current_u] == original_color) {
       
       // Label the pixel and count it (similar to recursive version)
-      img->data[current_v][current_u] = label;
+      img->image[current_v][current_u] = label;
       count++;  // Count this pixel
       
       // Push all 4-connected neighbors onto stack (similar pattern to recursive calls)
@@ -818,7 +831,7 @@ int ImageRegionFillingWithQUEUE(Image img, int u, int v, uint16 label) {
   // ...
  
   // Store the original color of the seed pixel
-  uint16 original_color = img->data[v][u];
+  uint16 original_color = img->image[v][u];
   
   // If the seed pixel already has the target label, return 0
   if (original_color == label) {
@@ -841,10 +854,10 @@ int ImageRegionFillingWithQUEUE(Image img, int u, int v, uint16 label) {
     
     // Check if pixel is valid and has the original color
     if (ImageIsValidPixel(img, current_u, current_v) && 
-        img->data[current_v][current_u] == original_color) {
+        img->image[current_v][current_u] == original_color) {
       
       // Label the pixel and count it
-      img->data[current_v][current_u] = label;
+      img->image[current_v][current_u] = label;
       count++;
       
       // Enqueue all 4-connected neighbors in explicit order
@@ -885,43 +898,39 @@ int ImageRegionFillingWithQUEUE(Image img, int u, int v, uint16 label) {
 ///
 /// Returns the number of image regions found.
 int ImageSegmentation(Image img, FillingFunction fillFunct) {
-  assert(img != NULL);
-  assert(fillFunct != NULL);
+    assert(img != NULL);
+    assert(fillFunct != NULL);
 
-  // TO BE COMPLETED
-  // ...
+    int num_regions = 0;
+    // Começamos a procurar novas regiões a partir do índice atual de cores.
+    rgb_t current_color = 0x000000; 
 
-  uint16 next_label = 1;  // Start labeling from 1 (0 is white background)
-  int total_regions = 0;
+    // Percorrer todos os pixeis
+    for (int i = 0; i < img->height; i++) {
+        for (int j = 0; j < img->width; j++) {
+            
+            // Se encontrarmos um pixel BRANCO (0), é o início de uma nova região
+            if (img->image[i][j] == 0) {
+                
+                current_color = GenerateNextColor(current_color);
+                
+                // Alocar nova entrada na LUT e verificar se há espaço na LUT
+                if (img->num_colors >= FIXED_LUT_SIZE) {
+                    fprintf(stderr, "Erro: Limite da LUT atingido na segmentação.\n");
+                    return num_regions;
+                }
 
-  // Sequential scan of the entire image
-  for (int v = 0; v < img->height; v++) {
-    for (int u = 0; u < img->width; u++) {
-      // Check if current pixel is white 
-      if (img->data[v][u] == 0) {
-        // Found a new white region, perform region growing
-        int pixels_filled = fillFunct(img, u, v, next_label);
-        
-        if (pixels_filled > 0) {
-          // Generate RGB color for this region label
-          RGBColor region_color = GenerateNextColor();
-          
-          // Store the color in the LUT at the label index
-          img->lut[next_label] = region_color;
-          
-          total_regions++;
-          next_label++;
-          
-          // Safety check to avoid exceeding LUT size
-          if (next_label >= FIXED_LUT_SIZE) {
-            printf("Reached maximum number of labels (%d)\n", FIXED_LUT_SIZE);
-            return total_regions;
-          }
+                int new_label = img->num_colors;
+                img->LUT[new_label] = current_color;
+                img->num_colors++;
+
+                // Preencher a região com o novo label usando a função passada
+                fillFunct(img, j, i, new_label);
+                
+                num_regions++;
+            }
         }
-      }
     }
-  }
-
-  return total_regions;
+    return num_regions;
 }
 
