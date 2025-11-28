@@ -742,80 +742,66 @@ int ImageRegionFillingRecursive(Image img, int u, int v, uint16 label) {
 
 /// Region growing using a STACK of pixel coordinates to
 /// implement the flood-filling algorithm.
+/// Region growing using a STACK of pixel coordinates to
+/// implement the flood-filling algorithm.
 int ImageRegionFillingWithSTACK(Image img, int u, int v, uint16 label) {
   assert(img != NULL);
   assert(ImageIsValidPixel(img, u, v));
   assert(label < FIXED_LUT_SIZE);
 
-  // TO BE COMPLETED
-  // ...
-  
+  // Obter cor base e verificar se é necessário pintar
   uint16 original_color = img->image[v][u];
-  
-  // If the seed pixel already has the target label, return 0
   if (original_color == label) {
     return 0;
   }
+
+  // Capacidade máxima segura: largura * altura
+  Stack* stack = StackCreate(img->width * img->height);
   
-  // Initialize stack for pixel coordinates
-  int stack_capacity = img->width * 2;
-  int *stack_u = (int *)malloc(stack_capacity * sizeof(int));
-  int *stack_v = (int *)malloc(stack_capacity * sizeof(int));
-  int stack_top = -1;
-  
-  // Push seed pixel onto stack
-  stack_top++;
-  stack_u[stack_top] = u;
-  stack_v[stack_top] = v;
-  
+  // Adicionar semente
+  PixelCoords seed = {u, v};
+  StackPush(stack, seed);
+
   int count = 0;
-  
-  // Process pixels until stack is empty
-  while (stack_top >= 0) {
-    // Pop pixel from stack
-    int current_u = stack_u[stack_top];
-    int current_v = stack_v[stack_top];
-    stack_top--;
-    
-    // Check if pixel is valid and has the original color
-    if (ImageIsValidPixel(img, current_u, current_v) && 
-        img->image[current_v][current_u] == original_color) {
+
+  // Ciclo de processamento
+  while (!StackIsEmpty(stack)) {
+    // Retirar elemento do topo
+    PixelCoords current = StackPop(stack); 
+    int cx = current.u;
+    int cy = current.v;
+
+    // Verificar se o pixel ainda é válido para pintar
+    if (ImageIsValidPixel(img, cx, cy) && img->image[cy][cx] == original_color) {
       
-      // Label the pixel and count it (similar to recursive version)
-      img->image[current_v][current_u] = label;
-      count++;  // Count this pixel
+      // Pintar e contar
+      img->image[cy][cx] = label;
+      count++;
+
+      // Adicionar vizinhos (Direita, Esquerda, Baixo, Cima)
       
-      // Push all 4-connected neighbors onto stack (similar pattern to recursive calls)
-      // Check stack capacity and resize if needed
-      if (stack_top + 4 >= stack_capacity) {
-        stack_capacity *= 2;
-        stack_u = (int *)realloc(stack_u, stack_capacity * sizeof(int));
-        stack_v = (int *)realloc(stack_v, stack_capacity * sizeof(int));
+      if (ImageIsValidPixel(img, cx + 1, cy) && img->image[cy][cx + 1] == original_color) {
+        PixelCoords nb = {cx + 1, cy};
+        StackPush(stack, nb);
       }
-      
-      // Push neighbors in the same order as recursive calls
-      stack_top++;
-      stack_u[stack_top] = current_u + 1;  // Right
-      stack_v[stack_top] = current_v;
-      
-      stack_top++;
-      stack_u[stack_top] = current_u;      // Down
-      stack_v[stack_top] = current_v + 1;
-      
-      stack_top++;
-      stack_u[stack_top] = current_u;      // Up
-      stack_v[stack_top] = current_v - 1;
-      
-      stack_top++;
-      stack_u[stack_top] = current_u - 1;  // Left
-      stack_v[stack_top] = current_v;
+      if (ImageIsValidPixel(img, cx - 1, cy) && img->image[cy][cx - 1] == original_color) {
+        PixelCoords nb = {cx - 1, cy};
+        StackPush(stack, nb);
+      }
+      if (ImageIsValidPixel(img, cx, cy + 1) && img->image[cy + 1][cx] == original_color) {
+        PixelCoords nb = {cx, cy + 1};
+        StackPush(stack, nb);
+      }
+      if (ImageIsValidPixel(img, cx, cy - 1) && img->image[cy - 1][cx] == original_color) {
+        PixelCoords nb = {cx, cy - 1};
+        StackPush(stack, nb);
+      }
     }
   }
-  
-  // Free stack memory
-  free(stack_u);
-  free(stack_v);
-  
+
+  //Libertar a memória da Stack
+  StackDestroy(&stack);
+
   return count;
 }
 
@@ -906,8 +892,8 @@ int ImageSegmentation(Image img, FillingFunction fillFunct) {
     rgb_t current_color = 0x000000; 
 
     // Percorrer todos os pixeis
-    for (int i = 0; i < img->height; i++) {
-        for (int j = 0; j < img->width; j++) {
+    for (uint32 i = 0; i < img->height; i++) {
+        for (uint32 j = 0; j < img->width; j++) {
             
             // Se encontrarmos um pixel BRANCO (0), é o início de uma nova região
             if (img->image[i][j] == 0) {
